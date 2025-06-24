@@ -1,0 +1,336 @@
+<?php
+
+namespace App\Http\Controllers\Client;
+
+use App\Http\Controllers\Controller;
+use App\Models\Course;
+use App\Models\Category;
+use App\Models\Lesson;
+use App\Models\LessonProgress;
+use App\Models\Assignment;
+use App\Models\AssignmentSubmission;
+use App\Models\User;
+use App\Models\Enrollment;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\View\View;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\JsonResponse;
+
+class CourseController extends Controller
+{
+    public function index(Request $request)
+    {
+        $query = Course::query()
+            ->with(['category', 'instructor'])
+            ->withAvg('reviews', 'rating')
+            ->withCount('reviews');
+
+        // Apply filters
+        if ($request->filled('category')) {
+            $query->where('category_id', $request->category);
+        }
+
+        if ($request->filled('level')) {
+            $query->where('level', $request->level);
+        }
+
+        if ($request->filled('duration')) {
+            // Add duration filter logic here
+        }
+
+        if ($request->filled('rating')) {
+            $query->having('reviews_avg_rating', '>=', $request->rating);
+        }
+
+        if ($request->filled('price_type')) {
+            $query->where('is_free', $request->price_type === 'free');
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        $courses = $query->latest()->paginate(12);
+        
+        // Add thumbnail URL accessor
+        $courses->each(function ($course) {
+            if ($course->thumbnail && Storage::disk('public')->exists($course->thumbnail)) {
+                $course->thumbnail_url = asset('storage/' . $course->thumbnail);
+            } else {
+                $course->thumbnail_url = asset('images/course-placeholder.jpg');
+            }
+        });
+
+        $categories = Category::withCount('courses')->get();
+
+        if ($request->ajax()) {
+            if ($request->filled('partial')) {
+                return view('client.courses._grid', compact('courses'))->render();
+            }
+            return view('client.courses._grid', compact('courses'));
+        }
+
+        return view('client.courses.index', compact('courses', 'categories'));
+    }
+
+    /**
+     * Get trending courses based on enrollment count and ratings
+     */
+    private function getTrendingCourses()
+    {
+        return Course::with(['category', 'instructor'])
+            ->where('status', 'published')
+            ->withCount('enrollments')
+            ->orderBy('enrollments_count', 'desc')
+            ->orderBy('average_rating', 'desc')
+            ->take(5)
+            ->get();
+    }
+
+    public function show(string $slug): View
+    {
+        $course = Course::with(['instructor', 'lessons'])
+            ->where('slug', $slug)
+            ->where('status', 'published')
+            ->firstOrFail();
+
+        $reviews = $course->reviews()
+            ->with('user')
+            ->latest()
+            ->paginate(5);
+
+        /** @var User|null $user */
+        $user = Auth::user();
+        $isEnrolled = false;
+        if ($user) {
+            $isEnrolled = $user->enrollments()->where('course_id', $course->id)->exists();
+        }
+
+        return view('client.courses.show', compact('course', 'reviews', 'isEnrolled'));
+    }
+
+    public function learn(Course $course, ?Lesson $lesson = null)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        
+        if (!$user->enrollments()->where('course_id', $course->id)->exists()) {
+            return redirect()->route('client.courses.show', $course->slug)
+                ->with('error', 'You must be enrolled in this course to access the lessons.');
+        }
+
+        if (!$lesson) {
+            $lesson = $course->lessons()->first();
+            if (!$lesson) {
+                return redirect()->route('client.courses.show', $course->slug)
+                    ->with('error', 'This course has no lessons yet.');
+            }
+        }
+
+        $progress = $user->lessonProgress()
+            ->whereIn('lesson_id', $course->lessons->pluck('id'))
+            ->get();
+
+        $submissions = collect();
+        if (!$course->is_free) {
+            $submissions = $user->assignmentSubmissions()
+                ->whereIn('assignment_id', $lesson->assignments->pluck('id'))
+                ->get();
+        }
+
+        return view('client.courses.learn', compact('course', 'lesson', 'progress', 'submissions'));
+    }
+
+    public function uploadVideo(Request $request, Course $course, Lesson $lesson)
+    {
+        $request->validate([
+            'video' => 'required|file|mimes:mp4,webm|max:102400', // 100MB max
+        ]);
+
+        $path = $request->file('video')->store('course-videos', 'public');
+        
+        $lesson->update([
+            'video_url' => Storage::url($path)
+        ]);
+
+        return back()->with('success', 'Video uploaded successfully.');
+    }
+
+    public function updateProgress(Request $request, Course $course, Lesson $lesson): JsonResponse
+    {
+        try {
+            /** @var User $user */
+            $user = Auth::user();
+            
+            // Log the incoming request data for debugging
+            Log::info('Updating progress for lesson', [
+                'user_id' => $user->id,
+                'lesson_id' => $lesson->id,
+                'course_id' => $course->id,
+                'video_progress' => $request->input('video_progress'),
+                'completed' => $request->input('completed')
+            ]);
+            
+            // Check if the user is enrolled in the course
+            $enrollment = $user->enrollments()->where('course_id', $course->id)->first();
+            if (!$enrollment) {
+                Log::warning('User not enrolled in course', [
+                    'user_id' => $user->id,
+                    'course_id' => $course->id
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You must be enrolled in this course to update progress.'
+                ], 403);
+            }
+
+            // Get current progress
+            $currentProgress = LessonProgress::where('user_id', $user->id)
+                ->where('lesson_id', $lesson->id)
+                ->first();
+
+            // Check skip limit (120 seconds)
+            $requestedProgress = $request->input('video_progress', 0);
+            $maxSkipAhead = 120; // Maximum seconds allowed to skip ahead (2 minutes)
+            
+            if ($currentProgress) {
+                $skipDistance = $requestedProgress - $currentProgress->video_progress;
+                
+                if ($skipDistance > $maxSkipAhead) {
+                    Log::warning('Skip limit exceeded', [
+                        'user_id' => $user->id,
+                        'lesson_id' => $lesson->id,
+                        'current_progress' => $currentProgress->video_progress,
+                        'requested_progress' => $requestedProgress,
+                        'skip_distance' => $skipDistance
+                    ]);
+                    
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'You can only skip up to 30 seconds ahead in the video.',
+                        'data' => [
+                            'video_progress' => $currentProgress->video_progress,
+                            'completed' => $currentProgress->completed,
+                            'completed_at' => $currentProgress->completed_at
+                        ]
+                    ], 400);
+                }
+            }
+
+            // Get or create progress record
+            $progress = LessonProgress::updateOrCreate(
+                [
+                    'user_id' => $user->id,
+                    'lesson_id' => $lesson->id
+                ],
+                [
+                    'video_progress' => $requestedProgress
+                ]
+            );
+
+            // If marking as complete
+            if ($request->boolean('completed')) {
+                $minRequiredProgress = $lesson->duration * 60; // Convert to seconds
+                
+                Log::info('Checking completion requirements', [
+                    'current_progress' => $progress->video_progress,
+                    'required_progress' => $minRequiredProgress,
+                    'lesson_duration' => $lesson->duration
+                ]);
+
+                // Allow completion if progress is sufficient
+                if ($progress->video_progress >= $minRequiredProgress) {
+                    $progress->completed = true;
+                    $progress->completed_at = now();
+                    $progress->save();
+
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Lesson marked as complete successfully.',
+                        'data' => [
+                            'video_progress' => $progress->video_progress,
+                            'completed' => true,
+                            'completed_at' => $progress->completed_at
+                        ]
+                    ]);
+                } else {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'You must watch the entire video before marking it as complete.'
+                    ], 400);
+                }
+            }
+
+            // Regular progress update
+            return response()->json([
+                'success' => true,
+                'message' => 'Progress updated successfully',
+                'data' => [
+                    'video_progress' => $progress->video_progress,
+                    'completed' => $progress->completed,
+                    'completed_at' => $progress->completed_at
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error updating lesson progress: ' . $e->getMessage(), [
+                'exception' => $e,
+                'user_id' => Auth::id(),
+                'lesson_id' => $lesson->id,
+                'course_id' => $course->id,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update progress. Please try again.'
+            ], 500);
+        }
+    }
+
+    public function submitAssignment(Request $request, Course $course, Lesson $lesson, Assignment $assignment)
+    {
+        $request->validate([
+            'submission_text' => 'required|string',
+            'submission_file' => 'nullable|file|max:10240' // 10MB max
+        ]);
+
+        $submission = new AssignmentSubmission([
+            'user_id' => Auth::id(),
+            'assignment_id' => $assignment->id,
+            'submission_text' => $request->submission_text,
+            'submitted_at' => now()
+        ]);
+
+        if ($request->hasFile('submission_file')) {
+            $path = $request->file('submission_file')->store('assignment-submissions', 'public');
+            $submission->submission_file = Storage::url($path);
+        }
+
+        $submission->save();
+
+        return back()->with('success', 'Assignment submitted successfully.');
+    }
+
+    public function gradeSubmission(Request $request, Course $course, Lesson $lesson, Assignment $assignment, AssignmentSubmission $submission)
+    {
+        $request->validate([
+            'score' => 'required|integer|min:0|max:' . $assignment->points,
+            'feedback' => 'required|string'
+        ]);
+
+        $submission->update([
+            'score' => $request->score,
+            'feedback' => $request->feedback
+        ]);
+
+        return back()->with('success', 'Submission graded successfully.');
+    }
+}
