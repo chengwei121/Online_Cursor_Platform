@@ -28,25 +28,53 @@ class CourseController extends Controller
             ->withAvg('reviews', 'rating')
             ->withCount('reviews');
 
-        // Apply filters
+        // Apply filters with support for multiple values
         if ($request->filled('category')) {
-            $query->where('category_id', $request->category);
+            $categories = is_array($request->category) ? $request->category : [$request->category];
+            $query->whereIn('category_id', $categories);
         }
 
         if ($request->filled('level')) {
-            $query->where('level', $request->level);
+            $levels = is_array($request->level) ? $request->level : [$request->level];
+            $query->whereIn('level', $levels);
         }
 
         if ($request->filled('duration')) {
-            // Add duration filter logic here
+            $durations = is_array($request->duration) ? $request->duration : [$request->duration];
+            $query->where(function($q) use ($durations) {
+                foreach ($durations as $duration) {
+                    switch ($duration) {
+                        case 'short':
+                            $q->orWhere('duration', '<=', 3);
+                            break;
+                        case 'medium':
+                            $q->orWhereBetween('duration', [3, 6]);
+                            break;
+                        case 'long':
+                            $q->orWhere('duration', '>', 6);
+                            break;
+                    }
+                }
+            });
         }
 
         if ($request->filled('rating')) {
-            $query->having('reviews_avg_rating', '>=', $request->rating);
+            $ratings = is_array($request->rating) ? $request->rating : [$request->rating];
+            $minRating = min($ratings); // Use the lowest rating selected
+            $query->having('reviews_avg_rating', '>=', $minRating);
         }
 
         if ($request->filled('price_type')) {
-            $query->where('is_free', $request->price_type === 'free');
+            $priceTypes = is_array($request->price_type) ? $request->price_type : [$request->price_type];
+            $query->where(function($q) use ($priceTypes) {
+                foreach ($priceTypes as $priceType) {
+                    if ($priceType === 'free') {
+                        $q->orWhere('is_free', true);
+                    } elseif ($priceType === 'premium') {
+                        $q->orWhere('is_free', false);
+                    }
+                }
+            });
         }
 
         if ($request->filled('search')) {

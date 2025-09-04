@@ -98,27 +98,29 @@
                     </p>
 
                     <!-- CTA Buttons -->
-                    @auth
-                            <a href="{{ route('client.courses.index') }}" 
-                               class="inline-flex items-center justify-center px-8 py-4 text-base font-medium rounded-xl text-white bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl">
-                                Explore Courses
-                                <svg class="ml-2 -mr-1 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                                </svg>
-                            </a>
-                        @else
-                            <a href="{{ route('register') }}" 
-                               class="inline-flex items-center justify-center px-8 py-4 text-base font-medium rounded-xl text-white bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl">
-                                Get Started
-                                <svg class="ml-2 -mr-1 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                                </svg>
-                            </a>
-                            <a href="{{ route('login') }}" 
-                               class="inline-flex items-center justify-center px-8 py-4 text-base font-medium rounded-xl text-white bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 transform hover:scale-105 transition-all duration-300">
-                                Sign In
-                            </a>
-                        @endauth
+                    <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                        @auth
+                                <a href="{{ route('client.courses.index') }}" 
+                                   class="inline-flex items-center justify-center px-8 py-4 text-base font-medium rounded-xl text-white bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl">
+                                    Explore Courses
+                                    <svg class="ml-2 -mr-1 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                    </svg>
+                                </a>
+                            @else
+                                <a href="{{ route('register') }}" 
+                                   class="inline-flex items-center justify-center px-8 py-4 text-base font-medium rounded-xl text-white bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl">
+                                    Get Started
+                                    <svg class="ml-2 -mr-1 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                    </svg>
+                                </a>
+                                <a href="{{ route('login') }}" 
+                                   class="inline-flex items-center justify-center px-8 py-4 text-base font-medium rounded-xl text-white bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 transform hover:scale-105 transition-all duration-300">
+                                    Sign In
+                                </a>
+                            @endauth
+                    </div>
                 </div>
 
                 <!-- Right Column - Feature Card -->

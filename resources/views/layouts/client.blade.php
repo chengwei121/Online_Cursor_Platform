@@ -867,16 +867,11 @@
 
                 <!-- Desktop Navigation -->
                 <nav class="hidden lg:flex items-center space-x-6">
-                    <a href="{{ route('client.courses.index') }}" 
-                       class="nav-link text-sm lg:text-base {{ request()->routeIs('client.courses.*') ? 'active' : '' }}">
-                        <i class="fas fa-graduation-cap mr-2"></i>
-                        Courses
-                    </a>
                     @auth
-                        <a href="{{ route('client.enrollments.index') }}" 
-                           class="nav-link text-sm lg:text-base {{ request()->routeIs('client.enrollments.*') ? 'active' : '' }}">
-                            <i class="fas fa-book-reader mr-2"></i>
-                            My Learning
+                        <a href="{{ route('client.courses.index') }}" 
+                           class="nav-link text-sm lg:text-base {{ request()->routeIs('client.courses.*') ? 'active' : '' }}">
+                            <i class="fas fa-graduation-cap mr-2"></i>
+                            Courses
                         </a>
                     @endauth
                 </nav>
@@ -941,14 +936,7 @@
 
                                     <!-- Menu Items -->
                                     <div class="p-2">
-                                        <div class="grid grid-cols-2 gap-2 mb-2">
-                                            <a href="{{ route('client.enrollments.index') }}" 
-                                               class="flex flex-col items-center p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                                                <div class="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 text-gray-600 mb-1">
-                                                    <i class="fas fa-book-open text-sm"></i>
-                                                </div>
-                                                <span class="text-xs font-medium text-gray-700">My Courses</span>
-                                            </a>
+                                        <div class="grid grid-cols-1 gap-2 mb-2">
                                             <a href="#" 
                                                class="flex flex-col items-center p-3 rounded-lg hover:bg-gray-50 transition-colors">
                                                 <div class="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 text-gray-600 mb-1">
@@ -1040,13 +1028,7 @@
                     <i class="fas fa-graduation-cap mr-2"></i>
                     Courses
                 </a>
-                @auth
-                    <a href="{{ route('client.enrollments.index') }}"
-                       class="block py-2 px-3 text-base font-medium rounded-lg transition {{ request()->routeIs('client.enrollments.*') ? 'bg-primary-50 text-primary' : 'text-gray-700 hover:bg-gray-100' }}">
-                        <i class="fas fa-book-reader mr-2"></i>
-                        My Learning
-                    </a>
-                @endauth
+
             </div>
 
             @auth

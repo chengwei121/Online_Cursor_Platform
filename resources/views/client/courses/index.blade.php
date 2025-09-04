@@ -4,7 +4,6 @@
 
 @push('styles')
 <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
-<link rel="stylesheet" href="{{ asset('css/courses.css') }}" />
 <style>
     /* Loading Screen */
     .loading-screen {
@@ -172,6 +171,209 @@
             display: none;
         }
     }
+
+    /* Search Container */
+    .search-container {
+        margin-bottom: 3rem;
+        position: relative;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 1.25rem 1.75rem 1.25rem 3.5rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 1rem;
+        font-size: 1.125rem;
+        line-height: 1.5;
+        color: #374151;
+        background-color: #ffffff;
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+
+    .search-icon {
+        position: absolute;
+        left: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #9ca3af;
+        width: 1.25rem;
+        height: 1.25rem;
+    }
+
+    /* Filter Section */
+    .filter-section {
+        border-bottom: 2px solid #e5e7eb;
+        padding: 1.5rem 0;
+    }
+
+    .filter-section:last-child {
+        border-bottom: none;
+    }
+
+    /* Filter Header */
+    .filter-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        user-select: none;
+        border-bottom: 1px solid #E5E7EB;
+        pointer-events: none;
+    }
+
+    .filter-title {
+        font-size: 14px;
+        font-weight: 500;
+        color: #111827;
+    }
+
+    /* Chevron Icon */
+    .chevron {
+        display: none;
+    }
+
+    .chevron-icon {
+        width: 16px;
+        height: 16px;
+        transition: transform 0.2s ease;
+        color: #111827;
+    }
+
+    .chevron-icon.open {
+        transform: rotate(180deg);
+    }
+
+    /* Filter Content */
+    .filter-content {
+        padding: 1.25rem 1.5rem;
+        overflow: visible;
+        max-height: none !important;
+    }
+
+    /* Filter Item */
+    .filter-item {
+        display: flex;
+        align-items: center;
+        padding: 1rem 0;
+        gap: 1rem;
+    }
+
+    /* Checkbox */
+    .filter-checkbox {
+        width: 16px;
+        height: 16px;
+        border: 1.5px solid #D1D5DB;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+    .filter-checkbox:checked {
+        background-color: #4F46E5;
+        border-color: #4F46E5;
+    }
+
+    /* Label */
+    .filter-label {
+        font-size: 14px;
+        color: #374151;
+    }
+
+    /* Count */
+    .filter-count {
+        font-size: 12px;
+        color: #6B7280;
+        margin-left: 4px;
+    }
+
+    /* Active Filters */
+    .active-filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin: 2rem 0;
+        min-height: 2rem;
+    }
+
+    .active-filters:empty {
+        display: none;
+    }
+
+    .filter-tag {
+        padding: 0.5rem 1rem;
+        font-size: 0.9375rem;
+    }
+
+    .remove-filter {
+        margin-left: 6px;
+        color: #4f46e5;
+        cursor: pointer;
+    }
+
+    .clear-filters {
+        font-size: 13px;
+        color: #4f46e5;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .clear-filters:hover {
+        color: #3730a3;
+        transform: scale(1.05);
+    }
+
+    /* Enhanced filter animations */
+    .filter-checkbox {
+        transition: all 0.2s ease;
+    }
+
+    .filter-checkbox:checked {
+        transform: scale(1.1);
+    }
+
+    .filter-tag {
+        transition: all 0.3s ease;
+        animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateX(-20px) scale(0.8);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0) scale(1);
+        }
+    }
+
+    /* Loading state for filters */
+    .filter-loading {
+        opacity: 0.6;
+        pointer-events: none;
+    }
+
+    .filter-loading .filter-checkbox {
+        animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    /* Improved search input */
+    .search-input {
+        transition: all 0.3s ease;
+    }
+
+    .search-input:focus {
+        transform: scale(1.02);
+    }
 </style>
 @endpush
 
@@ -184,8 +386,10 @@
     </div>
 </div>
 
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <h1 class="text-3xl font-bold text-gray-900 mb-6">Browse Our Courses</h1>
+<!-- Main Content with proper spacing from header -->
+<div class="pt-24 pb-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-6">Browse Our Courses</h1>
 
     <!-- Mobile Filter Toggle -->
     <button type="button" class="filter-toggle-btn mb-4" onclick="toggleFilterDrawer()">
@@ -356,23 +560,45 @@
 
             <!-- Active Filters -->
             <div class="active-filters" style="display: flex; align-items: center; gap: 1rem; margin: 1rem 0;">
-                @foreach(request()->only(['category', 'level', 'duration', 'rating']) as $filter => $value)
-                    @if($value)
-                    <span class="filter-tag">
-                        @if($filter === 'category')
-                            {{ $categories->find($value)->name }}
+                @php
+                    $activeFilters = [];
+                    
+                    // Handle multiple values for each filter type
+                    $filterTypes = ['category', 'level', 'duration', 'rating', 'price_type'];
+                    
+                    foreach ($filterTypes as $filterType) {
+                        $values = request($filterType);
+                        if ($values) {
+                            if (is_array($values)) {
+                                foreach ($values as $value) {
+                                    $activeFilters[] = ['type' => $filterType, 'value' => $value];
+                                }
+                            } else {
+                                $activeFilters[] = ['type' => $filterType, 'value' => $values];
+                            }
+                        }
+                    }
+                @endphp
+                
+                @foreach($activeFilters as $filter)
+                    <span class="filter-tag" data-filter="{{ $filter['type'] }}" data-value="{{ $filter['value'] }}">
+                        @if($filter['type'] === 'category')
+                            {{ $categories->find($filter['value'])->name ?? 'Unknown Category' }}
+                        @elseif($filter['type'] === 'price_type')
+                            {{ $filter['value'] === 'free' ? 'Free' : 'Premium' }}
                         @else
-                            {{ ucfirst($value) }}
+                            {{ ucfirst($filter['value']) }}
                         @endif
-                        <button onclick="removeFilter('{{ $filter }}')" class="remove-filter">
+                        <button onclick="removeFilter('{{ $filter['type'] }}', '{{ $filter['value'] }}')" class="remove-filter">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                             </svg>
                         </button>
                     </span>
-                    @endif
                 @endforeach
-                <button onclick="clearAllFilters()" class="clear-filters">
+                
+                <button onclick="clearAllFilters()" class="clear-filters" 
+                        @if(count($activeFilters) == 0) style="opacity: 0.5; pointer-events: none;" @endif>
                     Clear All
                 </button>
             </div>
@@ -401,10 +627,19 @@
 
     const loadingScreen = document.getElementById('loadingScreen');
     let searchTimeout;
+    let filterTimeout;
     let isTyping = false;
     let isDirty = false;
     let currentPage = 1;
     let isLoading = false;
+    let filterState = {
+        category: [],
+        level: [],
+        duration: [],
+        rating: [],
+        price_type: [],
+        search: ''
+    };
 
     // Initialize lazy loading for course images
     function initializeLazyLoading() {
@@ -441,9 +676,60 @@
         lazyImages.forEach(img => imageObserver.observe(img));
     }
 
+    // Initialize filter state from URL parameters
+    function initializeFilterState() {
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        // Initialize filter state from URL
+        filterState.category = urlParams.getAll('category');
+        filterState.level = urlParams.getAll('level');
+        filterState.duration = urlParams.getAll('duration');
+        filterState.rating = urlParams.getAll('rating');
+        filterState.price_type = urlParams.getAll('price_type');
+        filterState.search = urlParams.get('search') || '';
+        
+        // Update UI to reflect current state
+        updateFilterUI();
+    }
+
+    // Update filter UI to reflect current state
+    function updateFilterUI() {
+        // Update checkboxes
+        Object.keys(filterState).forEach(filterType => {
+            if (filterType === 'search') return;
+            
+            filterState[filterType].forEach(value => {
+                const checkbox = document.querySelector(`input[type="checkbox"][value="${value}"]`);
+                if (checkbox) {
+                    checkbox.checked = true;
+                }
+            });
+        });
+        
+        // Update search input
+        if (searchInput) {
+            searchInput.value = filterState.search;
+        }
+    }
+
+    // Toggle filter drawer with improved animations
+    function toggleFilterDrawer() {
+        const filterDrawer = document.querySelector('.filter-drawer');
+        const isOpen = filterDrawer.classList.contains('open');
+        
+        if (isOpen) {
+            filterDrawer.classList.remove('open');
+            filterDrawer.style.transform = 'translateX(-100%)';
+        } else {
+            filterDrawer.classList.add('open');
+            filterDrawer.style.transform = 'translateX(0)';
+        }
+    }
+
     // Initialize everything after DOM loads
     document.addEventListener('DOMContentLoaded', () => {
         initializeLazyLoading();
+        initializeFilterState();
     });
 
     // Search functionality
@@ -455,85 +741,187 @@
         clearTimeout(searchTimeout);
         
         const query = this.value.trim();
+        filterState.search = query;
         
         searchTimeout = setTimeout(() => {
             isTyping = false;
             if (isDirty) {
                 showLoading();
-                const url = new URL(window.location.href);
-                if (query) {
-                    url.searchParams.set('search', query);
-                } else {
-                    url.searchParams.delete('search');
-                }
-                
-                fetchResults(url);
+                applyFiltersToURL();
             }
         }, 1500);
     });
 
-    // Apply filter
+    // Apply filter with debouncing and improved state management
     function applyFilter(type, value, checked) {
         isDirty = true;
-        const url = new URL(window.location.href);
+        
+        // Update filter state
         if (checked) {
-            url.searchParams.set(type, value);
+            if (!filterState[type].includes(value)) {
+                filterState[type].push(value);
+            }
         } else {
-            url.searchParams.delete(type);
+            filterState[type] = filterState[type].filter(item => item !== value);
         }
-        showLoading();
-        fetchResults(url);
+        
+        // Clear existing timeout
+        clearTimeout(filterTimeout);
+        
+        // Debounce filter application
+        filterTimeout = setTimeout(() => {
+            applyFiltersToURL();
+        }, 300);
+        
+        // Close filter drawer on mobile
+        const filterDrawer = document.querySelector('.filter-drawer');
+        if (filterDrawer && filterDrawer.classList.contains('open')) {
+            filterDrawer.classList.remove('open');
+        }
+        
+        // Don't scroll to top - let user stay where they are
     }
 
-    // Remove filter
-    function removeFilter(type) {
-        isDirty = true;
-        const checkbox = document.querySelector(`.filter-checkbox[data-type="${type}"]`);
-        if (checkbox) {
-            checkbox.checked = false;
-        }
-
-        const filterTag = document.querySelector(`[data-filter="${type}"]`);
-        if (filterTag) {
-            filterTag.style.opacity = '0';
-            setTimeout(() => filterTag.remove(), 300);
-        }
-
+    // Apply current filter state to URL and fetch results
+    function applyFiltersToURL() {
         const url = new URL(window.location.href);
-        url.searchParams.delete(type);
+        
+        // Clear existing parameters
+        ['category', 'level', 'duration', 'rating', 'price_type', 'search'].forEach(param => {
+            url.searchParams.delete(param);
+        });
+        
+        // Add current filter state to URL
+        Object.keys(filterState).forEach(filterType => {
+            if (filterState[filterType].length > 0) {
+                if (filterType === 'search') {
+                    if (filterState[filterType]) {
+                        url.searchParams.set(filterType, filterState[filterType]);
+                    }
+                } else {
+                    filterState[filterType].forEach(value => {
+                        url.searchParams.append(filterType, value);
+                    });
+                }
+            }
+        });
+        
         showLoading();
         fetchResults(url);
     }
 
-    // Clear all filters
-    function clearAllFilters() {
+    // Remove specific filter value
+    function removeFilter(type, value = null) {
         isDirty = true;
         
+        if (value) {
+            // Remove specific value from filter state
+            filterState[type] = filterState[type].filter(item => item !== value);
+            
+            // Update corresponding checkbox
+            const checkbox = document.querySelector(`input[type="checkbox"][value="${value}"]`);
+            if (checkbox) {
+                checkbox.checked = false;
+            }
+            
+            // Animate specific filter tag removal
+            const filterTag = document.querySelector(`[data-filter="${type}"][data-value="${value}"]`);
+            if (filterTag) {
+                filterTag.style.opacity = '0';
+                filterTag.style.transform = 'translateX(-10px) scale(0.9)';
+                setTimeout(() => filterTag.remove(), 300);
+            }
+        } else {
+            // Remove all values for this filter type
+            filterState[type] = [];
+            
+            // Uncheck all checkboxes for this filter type
+            document.querySelectorAll(`input[type="checkbox"][onchange*="applyFilter('${type}'"]`).forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            
+            // Remove all filter tags for this type
+            document.querySelectorAll(`[data-filter="${type}"]`).forEach(tag => {
+                tag.style.opacity = '0';
+                tag.style.transform = 'translateX(-10px) scale(0.9)';
+                setTimeout(() => tag.remove(), 300);
+            });
+        }
+
+        // Close filter drawer on mobile
+        const filterDrawer = document.querySelector('.filter-drawer');
+        if (filterDrawer && filterDrawer.classList.contains('open')) {
+            filterDrawer.classList.remove('open');
+        }
+        
+        // Don't scroll to top - let user stay where they are
+
+        // Apply changes with debouncing
+        clearTimeout(filterTimeout);
+        filterTimeout = setTimeout(() => {
+            applyFiltersToURL();
+        }, 300);
+    }
+
+    // Clear all filters with improved animations
+    function clearAllFilters() {
+        console.log('Clear All Filters clicked'); // Debug log
+        
+        isDirty = true;
+        
+        // Reset filter state
+        Object.keys(filterState).forEach(key => {
+            filterState[key] = key === 'search' ? '' : [];
+        });
+        
+        console.log('Filter state reset:', filterState); // Debug log
+        
+        // Animate filter tags removal
         const filterTags = document.querySelectorAll('.filter-tag');
+        console.log('Found filter tags:', filterTags.length); // Debug log
+        
         filterTags.forEach((tag, index) => {
             setTimeout(() => {
                 tag.style.opacity = '0';
-                tag.style.transform = 'translateX(-10px)';
-            }, index * 100);
+                tag.style.transform = 'translateX(-10px) scale(0.9)';
+            }, index * 50);
         });
 
-        document.querySelectorAll('.filter-checkbox').forEach(checkbox => {
-            checkbox.checked = false;
+        // Uncheck all checkboxes with animation
+        const checkboxes = document.querySelectorAll('.filter-checkbox');
+        console.log('Found checkboxes:', checkboxes.length); // Debug log
+        
+        checkboxes.forEach((checkbox, index) => {
+            setTimeout(() => {
+                checkbox.checked = false;
+                checkbox.style.transform = 'scale(0.8)';
+                setTimeout(() => {
+                    checkbox.style.transform = 'scale(1)';
+                }, 150);
+            }, index * 30);
         });
 
-        searchInput.value = '';
+        // Clear search input
+        if (searchInput) {
+            searchInput.value = '';
+            searchInput.style.transform = 'scale(0.98)';
+            setTimeout(() => {
+                searchInput.style.transform = 'scale(1)';
+            }, 200);
+        }
 
+        // Close filter drawer on mobile
+        const filterDrawer = document.querySelector('.filter-drawer');
+        if (filterDrawer && filterDrawer.classList.contains('open')) {
+            filterDrawer.classList.remove('open');
+        }
+        
+        // Don't scroll to top - let user stay where they are
+
+        // Apply changes after animations
         setTimeout(() => {
-            const url = new URL(window.location.href);
-            const params = ['category', 'level', 'duration', 'rating', 'search'];
-            
-            params.forEach(param => {
-                url.searchParams.delete(param);
-            });
-
-            showLoading();
-            fetchResults(url);
-        }, 300);
+            applyFiltersToURL();
+        }, 500);
     }
 
     // Loading functions
